@@ -27,7 +27,7 @@ setup(
     python_requires='>=3.12',
     project_urls={
         'Source': 'https://github.com/wagtail/wagtail-review',
-    ],
+    },
     license='BSD',
     long_description="An extension for Wagtail allowing pages to be submitted for review (including to non-Wagtail users) prior to publication",
     classifiers=[
