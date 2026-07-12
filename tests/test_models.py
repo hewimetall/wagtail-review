@@ -5,6 +5,8 @@ from django.test import TestCase
 from wagtail.models import Page
 
 from wagtail_review.models import Review, Reviewer
+from wagtail_review.templatetags.wagtailreview_admin_tags import page_has_open_review
+from wagtail_review.text import user_display_name
 
 
 class TestReviewerModel(TestCase):
@@ -53,3 +55,22 @@ class TestReviewerModel(TestCase):
             reviewer.get_view_url(absolute=True),
             'http://test.local/review/view/%d/%s/' % (reviewer.id, reviewer.view_token)
         )
+
+    def test_page_has_open_review_tag(self):
+        self.assertTrue(page_has_open_review(self.homepage))
+
+        self.review.status = 'closed'
+        self.review.save()
+
+        self.assertFalse(page_has_open_review(self.homepage))
+
+    def test_user_display_name_fallbacks(self):
+        class UsernameOnlyUser:
+            def get_full_name(self):
+                return ''
+
+            def get_username(self):
+                return 'fallback-user'
+
+        self.assertEqual(user_display_name(UsernameOnlyUser()), 'fallback-user')
+        self.assertEqual(user_display_name(None), '')
