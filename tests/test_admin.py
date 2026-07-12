@@ -6,6 +6,7 @@ from django.test import TestCase
 
 from wagtail.models import Page
 
+from tests.models import SimplePage
 from wagtail_review.models import Review
 
 
@@ -84,7 +85,10 @@ class TestAdminViews(TestCase):
         self.assertContains(audit_response, 'Awaiting response')
 
     def test_view_review_page_from_admin(self):
-        review = self.create_homepage_review()
+        page = SimplePage(title="Review page", slug="review-page")
+        self.homepage.add_child(instance=page)
+        review = Review.objects.create(page_revision=page.save_revision(), submitter=self.admin_user)
+        review.reviewers.create(user=self.admin_user)
 
         response = self.client.get('/admin/wagtail_review/reviews/%d/view/' % review.pk)
 
