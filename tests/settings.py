@@ -1,14 +1,11 @@
 from __future__ import absolute_import, unicode_literals
 
 import os
-import django
-
-from wagtail import VERSION as WAGTAIL_VERSION
 
 DATABASES = {
     'default': {
         'ENGINE': os.environ.get('DATABASE_ENGINE', 'django.db.backends.sqlite3'),
-        'NAME': os.environ.get('DATABASE_NAME', 'wagtail_review'),
+        'NAME': os.environ.get('DATABASE_NAME', ':memory:'),
         'USER': os.environ.get('DATABASE_USER', None),
         'PASSWORD': os.environ.get('DATABASE_PASS', None),
         'HOST': os.environ.get('DATABASE_HOST', None),
@@ -19,12 +16,25 @@ DATABASES = {
     }
 }
 
+if DATABASES['default']['ENGINE'] != 'django.db.backends.sqlite3':
+    DATABASES['default']['NAME'] = os.environ.get('DATABASE_NAME', 'wagtail_review')
+
 
 SECRET_KEY = 'not needed'
+ALLOWED_HOSTS = ['localhost', 'testserver', 'test.local']
 
 ROOT_URLCONF = 'tests.urls'
 
 STATIC_URL = '/static/'
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
 
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
@@ -59,22 +69,23 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-if WAGTAIL_VERSION < (2, 9):
-    MIDDLEWARE.append('wagtail.core.middleware.SiteMiddleware')
-
 INSTALLED_APPS = (
     'wagtail_review',
     'tests',
 
     'wagtail.search',
+    'wagtail.embeds',
     'wagtail.sites',
-    'wagtail.users',
+    'wagtail.locales',
+    'wagtail.snippets',
     'wagtail.images',
     'wagtail.documents',
     'wagtail.admin',
-    'wagtail.core',
+    'wagtail',
 
     'taggit',
+    'rest_framework',
+    'django_filters',
 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -84,9 +95,17 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
 )
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 PASSWORD_HASHERS = (
     'django.contrib.auth.hashers.MD5PasswordHasher',  # don't use the intentionally slow default password hasher
 )
 
 WAGTAIL_SITE_NAME = 'wagtail-review test'
 BASE_URL = 'http://test.local'
+WAGTAILADMIN_BASE_URL = 'http://test.local'
+WAGTAILSEARCH_BACKENDS = {
+    'default': {
+        'BACKEND': 'wagtail.search.backends.database.fallback',
+    }
+}

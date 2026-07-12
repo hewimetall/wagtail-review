@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name='wagtail-review',
@@ -12,7 +12,21 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'swapper>=1.1,<1.2',
+        'wagtail>=7.4,<7.5',
+        'swapper>=1.4,<2',
+    ],
+    extras_require={
+        'testing': [
+            'coverage>=7.15,<8',
+            'pip-audit>=2.10,<3',
+        ],
+        'postgres': [
+            'psycopg[binary]>=3.3,<4',
+        ],
+    },
+    python_requires='>=3.12',
+    project_urls={
+        'Source': 'https://github.com/wagtail/wagtail-review',
     ],
     license='BSD',
     long_description="An extension for Wagtail allowing pages to be submitted for review (including to non-Wagtail users) prior to publication",
@@ -24,14 +38,10 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         'Framework :: Django',
         'Framework :: Wagtail',
-        'Framework :: Wagtail :: 2',
+        'Framework :: Wagtail :: 7',
     ],
 )

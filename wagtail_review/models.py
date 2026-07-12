@@ -8,16 +8,12 @@ from django.db.models import Case, Value, When
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 import swapper
 
-try:
-    from wagtail.admin.mail import send_mail  # Wagtail >= 2.7
-except ImportError:
-    from wagtail.admin.utils import send_mail  # Wagtail < 2.7
-
-from wagtail.core.models import UserPagePermissionsProxy
+from wagtail.admin.mail import send_mail
+from wagtail.permissions import page_permission_policy
 
 from wagtail_review.text import user_display_name
 
@@ -36,7 +32,7 @@ class BaseReview(models.Model):
     """
     Abstract base class for Review models. Can be subclassed to specify application-specific fields, e.g. review type
     """
-    page_revision = models.ForeignKey('wagtailcore.PageRevision', related_name='+', on_delete=models.CASCADE, editable=False)
+    page_revision = models.ForeignKey('wagtailcore.Revision', related_name='+', on_delete=models.CASCADE, editable=False)
     status = models.CharField(max_length=30, default='open', choices=REVIEW_STATUS_CHOICES, editable=False)
     submitter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+', editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -48,7 +44,7 @@ class BaseReview(models.Model):
 
     @cached_property
     def revision_as_page(self):
-        return self.page_revision.as_page_object()
+        return self.page_revision.as_object()
 
     def get_annotations(self):
         return Annotation.objects.filter(reviewer__review=self).prefetch_related('ranges')
@@ -64,11 +60,13 @@ class BaseReview(models.Model):
         """
         Return a queryset of pages which have reviews, for which the user has edit permission
         """
-        user_perms = UserPagePermissionsProxy(user)
+        editable_pages = page_permission_policy.instances_user_has_any_permission_for(
+            user, {'change', 'publish'}
+        )
         reviewed_pages = (
             cls.objects
             .order_by('-created_at')
-            .values_list('page_revision__page_id', 'created_at')
+            .values_list('page_revision__object_id', 'created_at')
         )
         # Annotate datetime when a review was last created for this page
         last_review_requested_at = Case(
@@ -79,7 +77,7 @@ class BaseReview(models.Model):
             output_field=models.DateTimeField(),
         )
         return (
-            user_perms.editable_pages()
+            editable_pages
             .filter(pk__in=(page[0] for page in reviewed_pages))
             .annotate(last_review_requested_at=last_review_requested_at)
             .order_by('-last_review_requested_at')

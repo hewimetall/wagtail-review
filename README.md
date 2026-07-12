@@ -6,7 +6,9 @@ An extension for Wagtail allowing pages to be submitted for review (including to
 
 ## Requirements
 
-Wagtail 2.4 or higher
+* Python 3.12 or higher
+* Wagtail 7.4
+* Django 6.0, installed through Wagtail's dependency constraints
 
 ## Installation
 
@@ -23,7 +25,7 @@ Add to your project's URL config:
     from wagtail_review import urls as wagtailreview_urls
 
     # Somewhere above the include(wagtail_urls) line:
-        url(r'^review/', include(wagtailreview_urls)),
+    path('review/', include(wagtailreview_urls)),
 
 Add a `{% wagtailreview %}` tag to your project's base template(s), towards the bottom of the document `<body>`:
 
@@ -31,6 +33,52 @@ Add a `{% wagtailreview %}` tag to your project's base template(s), towards the 
 
     {% wagtailreview %}
 
+
+## Local development setup
+
+Install the package and its test tooling into your Python environment:
+
+    python3 -m pip install -e ".[testing]"
+
+For PostgreSQL-backed development or CI runs, also install the optional
+PostgreSQL extra:
+
+    python3 -m pip install -e ".[testing,postgres]"
+
+The test project defaults to an in-memory SQLite database. Set these environment
+variables to run against another database:
+
+* `DATABASE_ENGINE`: Django database backend. Defaults to
+  `django.db.backends.sqlite3`.
+* `DATABASE_NAME`: Database name. Defaults to `:memory:` for SQLite tests.
+* `DATABASE_USER`: Database user.
+* `DATABASE_PASS`: Database password.
+* `DATABASE_HOST`: Database host.
+
+## Running the tests
+
+Run the Django test suite:
+
+    ./runtests.py
+
+Run the suite with coverage and enforce the project threshold:
+
+    coverage run --source=wagtail_review ./runtests.py
+    coverage report --fail-under=93 -m
+
+Run the Python dependency audit:
+
+    python3 -m pip_audit
+
+## Running in a Wagtail project
+
+After installation, include `wagtail_review.urls` before Wagtail's page-serving
+URL patterns and add `{% wagtailreview %}` to each base template that should
+support review annotations. Review URLs use the configured `BASE_URL` setting
+when generating absolute reviewer links in email notifications.
+
+The app registers its Wagtail admin URLs and page action menu item through
+`wagtail_review.wagtail_hooks`; no manual admin URL registration is required.
 
 ## Custom notification emails
 
