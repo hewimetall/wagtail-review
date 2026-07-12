@@ -96,6 +96,9 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
 )
 
+if DATABASES['default']['ENGINE'] == 'django.db.backends.postgresql':
+    INSTALLED_APPS += ('django.contrib.postgres',)
+
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 PASSWORD_HASHERS = (
