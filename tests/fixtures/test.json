@@ -4,6 +4,7 @@
     "model": "wagtailcore.page",
     "fields": {
         "title": "Root",
+        "draft_title": "Root",
         "numchild": 1,
         "show_in_menus": false,
         "live": true,
@@ -14,6 +15,7 @@
         ],
         "path": "0001",
         "url_path": "/",
+        "locale_id": 1,
         "slug": "root"
     }
 },
@@ -23,6 +25,7 @@
     "model": "wagtailcore.page",
     "fields": {
         "title": "Home",
+        "draft_title": "Home",
         "numchild": 0,
         "show_in_menus": false,
         "live": true,
@@ -30,6 +33,7 @@
         "content_type": ["wagtailcore", "page"],
         "path": "00010001",
         "url_path": "/home/",
+        "locale_id": 1,
         "slug": "home"
     }
 },

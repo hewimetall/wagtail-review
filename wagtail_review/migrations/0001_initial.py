@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('wagtailcore', '0040_page_draft_title'),
+        ('wagtailcore', '0070_rename_pagerevision_revision'),
         migrations.swappable_dependency(settings.WAGTAILREVIEW_REVIEW_MODEL),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('status', models.CharField(choices=[('open', 'Open'), ('closed', 'Closed')], default='open', editable=False, max_length=30)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('page_revision', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='wagtailcore.PageRevision')),
+                ('page_revision', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name='+', to='wagtailcore.Revision')),
                 ('submitter', models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name='+', to=settings.AUTH_USER_MODEL)),
             ],
             options={

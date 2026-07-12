@@ -3,16 +3,16 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
+from django.views.generic import TemplateView
 from django.views.generic.detail import DetailView
 
 import swapper
 
-from wagtail import VERSION as WAGTAIL_VERSION
 from wagtail.admin import messages
 from wagtail.admin.modal_workflow import render_modal_workflow
-from wagtail.admin.views import generic
+from wagtail.admin.views.generic.base import WagtailAdminTemplateMixin
 
 from wagtail_review.forms import get_review_form_class, ReviewerFormSet
 from wagtail_review.models import Reviewer
@@ -94,7 +94,7 @@ def autocomplete_users(request):
     return JsonResponse({'results': result_data})
 
 
-class DashboardView(generic.IndexView):
+class DashboardView(WagtailAdminTemplateMixin, TemplateView):
     template_name = 'wagtail_review/admin/dashboard.html'
     page_title = _("Review dashboard")
     context_object_name = 'pages'
@@ -102,8 +102,14 @@ class DashboardView(generic.IndexView):
     def get_queryset(self):
         return Review.get_pages_with_reviews_for_user(self.request.user)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context[self.context_object_name] = self.get_queryset()
+        context['ordering'] = self.request.GET.get('ordering')
+        return context
 
-class AuditTrailView(DetailView):
+
+class AuditTrailView(WagtailAdminTemplateMixin, DetailView):
     template_name = 'wagtail_review/admin/audit_trail.html'
     page_title = _("Audit trail")
     header_icon = 'doc-empty-inverse'
@@ -119,7 +125,7 @@ class AuditTrailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         context['reviews'] = Review.objects.filter(
-            page_revision__page=self.object
+            page_revision__object_id=self.object.pk
         ).order_by('created_at').select_related('submitter').prefetch_related('reviewers__responses')
         context['page_permissions'] = self.object.permissions_for_user(self.request.user)
 
@@ -138,7 +144,7 @@ def view_review_page(request, review_id=None):
         # if they have edit access to the page, give them the submitter's
         # read-only credentials so that they can see annotations
 
-        page = review.page_revision.as_page_object()
+        page = review.page_revision.as_object()
         perms = page.permissions_for_user(request.user)
 
         if not (perms.can_edit() or perms.can_publish()):
@@ -149,31 +155,25 @@ def view_review_page(request, review_id=None):
         except Reviewer.DoesNotExist:
             raise PermissionDenied
 
-    page = review.page_revision.as_page_object()
+    page = review.page_revision.as_object()
     if reviewer.user == request.user:
         review_mode = 'comment'
     else:
         review_mode = 'view'
 
-    if WAGTAIL_VERSION < (2, 7):
-        dummy_request = page.dummy_request(request)
-        dummy_request.wagtailreview_reviewer = reviewer
-        dummy_request.wagtailreview_mode = review_mode
-        return page.serve_preview(dummy_request, page.default_preview_mode)
-    else:
-        return page.make_preview_request(
-            original_request=request,
-            extra_request_attrs={
-                'wagtailreview_reviewer': reviewer,
-                'wagtailreview_mode': review_mode,
-            }
-        )
+    return page.make_preview_request(
+        original_request=request,
+        extra_request_attrs={
+            'wagtailreview_reviewer': reviewer,
+            'wagtailreview_mode': review_mode,
+        }
+    )
 
 
 @require_POST
 def close_review(request, review_id=None):
     review = get_object_or_404(Review, id=review_id)
-    page = review.page_revision.as_page_object()
+    page = review.page_revision.as_object()
     perms = page.permissions_for_user(request.user)
 
     if not (perms.can_edit() or perms.can_publish()):
@@ -190,7 +190,7 @@ def close_review(request, review_id=None):
 @require_POST
 def close_and_publish(request, review_id=None):
     review = get_object_or_404(Review, id=review_id)
-    page = review.page_revision.as_page_object()
+    page = review.page_revision.as_object()
     perms = page.permissions_for_user(request.user)
     if not perms.can_publish():
         raise PermissionDenied
@@ -207,7 +207,7 @@ def close_and_publish(request, review_id=None):
 @require_POST
 def reopen_review(request, review_id=None):
     review = get_object_or_404(Review, id=review_id)
-    page = review.page_revision.as_page_object()
+    page = review.page_revision.as_object()
     perms = page.permissions_for_user(request.user)
 
     if not (perms.can_edit() or perms.can_publish()):

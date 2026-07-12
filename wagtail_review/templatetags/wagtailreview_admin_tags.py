@@ -11,7 +11,7 @@ register = template.Library()
 
 @register.simple_tag
 def page_has_open_review(page):
-    return bool(Review.objects.filter(page_revision__page=page, status='open'))
+    return Review.objects.filter(page_revision__object_id=page.pk, status='open').exists()
 
 
 register.filter(user_display_name)

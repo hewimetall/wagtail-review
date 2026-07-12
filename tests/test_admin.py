@@ -4,8 +4,9 @@ from django.contrib.auth.models import User
 from django.core import mail
 from django.test import TestCase
 
-from wagtail.core.models import Page
+from wagtail.models import Page
 
+from tests.models import SimplePage
 from wagtail_review.models import Review
 
 
@@ -13,11 +14,18 @@ class TestAdminViews(TestCase):
     fixtures = ['test.json']
 
     def setUp(self):
-        User.objects.create_superuser(username='admin', email='admin@example.com', password='password')
+        self.admin_user = User.objects.create_superuser(username='admin', email='admin@example.com', password='password')
         self.assertTrue(
             self.client.login(username='admin', password='password')
         )
         self.homepage = Page.objects.get(url_path='/home/').specific
+
+    def create_homepage_review(self):
+        revision = self.homepage.save_revision()
+        review = Review.objects.create(page_revision=revision, submitter=self.admin_user)
+        review.reviewers.create(user=self.admin_user)
+        review.reviewers.create(user=User.objects.get(username='spongebob'))
+        return review
 
     def test_submit_for_review_action(self):
         """Test that 'submit for review' appears in the page action menu"""
@@ -58,6 +66,54 @@ class TestAdminViews(TestCase):
             {'id': 1, 'full_name': 'Spongebob Squarepants', 'username': 'spongebob'}
         ])
 
+    def test_user_autocomplete_empty_query(self):
+        response = self.client.get('/admin/wagtail_review/autocomplete_users/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content), {'results': []})
+
+    def test_dashboard_and_audit_trail(self):
+        review = self.create_homepage_review()
+
+        dashboard_response = self.client.get('/admin/wagtail_review/reviews/?ordering=page')
+        audit_response = self.client.get('/admin/wagtail_review/reviews/%d/' % self.homepage.pk)
+
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertContains(dashboard_response, 'Home')
+        self.assertEqual(audit_response.status_code, 200)
+        self.assertContains(audit_response, review.get_status_display())
+        self.assertContains(audit_response, 'Awaiting response')
+
+    def test_view_review_page_from_admin(self):
+        page = SimplePage(title="Review page", slug="review-page")
+        self.homepage.add_child(instance=page)
+        review = Review.objects.create(page_revision=page.save_revision(), submitter=self.admin_user)
+        review.reviewers.create(user=self.admin_user)
+
+        response = self.client.get('/admin/wagtail_review/reviews/%d/view/' % review.pk)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "var app = new annotator.App();")
+        self.assertContains(response, "app.include(annotator.ui.main,")
+
+    def test_close_reopen_and_publish_review(self):
+        review = self.create_homepage_review()
+
+        close_response = self.client.post('/admin/wagtail_review/reviews/%d/close/' % review.pk)
+        review.refresh_from_db()
+        self.assertRedirects(close_response, '/admin/wagtail_review/reviews/%d/' % self.homepage.pk)
+        self.assertEqual(review.status, 'closed')
+
+        reopen_response = self.client.post('/admin/wagtail_review/reviews/%d/reopen/' % review.pk)
+        review.refresh_from_db()
+        self.assertRedirects(reopen_response, '/admin/wagtail_review/reviews/%d/' % self.homepage.pk)
+        self.assertEqual(review.status, 'open')
+
+        publish_response = self.client.post('/admin/wagtail_review/reviews/%d/close_and_publish/' % review.pk)
+        review.refresh_from_db()
+        self.assertRedirects(publish_response, '/admin/wagtail_review/reviews/%d/' % self.homepage.pk)
+        self.assertEqual(review.status, 'closed')
+
     def test_validate_reviewers_required(self):
         # reject a completely empty formset
         response = self.client.post('/admin/wagtail_review/create_review/', {
@@ -69,7 +125,7 @@ class TestAdminViews(TestCase):
         self.assertEqual(response.status_code, 200)
         response_json = json.loads(response.content)
         self.assertEqual(response_json['step'], 'form')
-        self.assertFormsetError(response, 'reviewer_formset', None, None, "Please select one or more reviewers.")
+        self.assertIn("Please select one or more reviewers.", response_json['html'])
 
         # reject a formset with only deleted items
         response = self.client.post('/admin/wagtail_review/create_review/', {
@@ -85,7 +141,7 @@ class TestAdminViews(TestCase):
         self.assertEqual(response.status_code, 200)
         response_json = json.loads(response.content)
         self.assertEqual(response_json['step'], 'form')
-        self.assertFormsetError(response, 'reviewer_formset', None, None, "Please select one or more reviewers.")
+        self.assertIn("Please select one or more reviewers.", response_json['html'])
 
     def test_validate_ok(self):
         response = self.client.post('/admin/wagtail_review/create_review/', {
@@ -125,6 +181,7 @@ class TestAdminViews(TestCase):
 
         self.assertRedirects(response, '/admin/pages/1/')
 
+        self.homepage.refresh_from_db()
         revision = self.homepage.get_latest_revision()
         review = Review.objects.get(page_revision=revision)
         self.assertEqual(review.reviewers.count(), 3)

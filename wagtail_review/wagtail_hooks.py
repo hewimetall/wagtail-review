@@ -1,18 +1,14 @@
-from django.conf.urls import include, url
 from django.contrib import messages as django_messages
-from django.templatetags.static import static
 from django.shortcuts import redirect
-from django.urls import reverse
-from django.utils.html import format_html
-from django.utils.translation import ugettext_lazy as _
+from django.urls import include, path, reverse
+from django.utils.translation import gettext_lazy as _
 
 import swapper
 
-from wagtail import VERSION as WAGTAIL_VERSION
+from wagtail import hooks
 from wagtail.admin import messages
 from wagtail.admin.action_menu import ActionMenuItem
 from wagtail.admin.menu import MenuItem
-from wagtail.core import hooks
 
 from wagtail_review import admin_urls
 from wagtail_review.forms import get_review_form_class, ReviewerFormSet
@@ -23,7 +19,7 @@ Review = swapper.load_model('wagtail_review', 'Review')
 @hooks.register('register_admin_urls')
 def register_admin_urls():
     return [
-        url(r'^wagtail_review/', include(admin_urls, namespace='wagtail_review_admin')),
+        path('wagtail_review/', include(admin_urls, namespace='wagtail_review_admin')),
     ]
 
 
@@ -32,17 +28,8 @@ def register_admin_urls():
 class SubmitForReviewMenuItem(ActionMenuItem):
     label = _("Submit for review")
     name = 'action-submit-for-review'
-    if WAGTAIL_VERSION >= (2, 10):
-        template = 'wagtail_review/submit_for_review_menu_item.html'
-        icon_name = 'resubmit'
-    else:
-        template = 'wagtail_review/submit_for_review_menu_item_pre_2_10.html'
-
-    def render_html(self, request, parent_context):
-        html = super().render_html(request, parent_context)
-        if WAGTAIL_VERSION < (2, 7):
-            html = format_html('<li>{}</li>', html)
-        return html
+    template = 'wagtail_review/submit_for_review_menu_item.html'
+    icon_name = 'resubmit'
 
     class Media:
         js = ['wagtail_review/js/submit.js']
@@ -108,5 +95,5 @@ class ReviewsMenuItem(MenuItem):
 def register_images_menu_item():
     return ReviewsMenuItem(
         _('Reviews'), reverse('wagtail_review_admin:dashboard'),
-        name='reviews', classnames='icon icon-tick', order=1000
+        name='reviews', classname='icon icon-tick', order=1000
     )
